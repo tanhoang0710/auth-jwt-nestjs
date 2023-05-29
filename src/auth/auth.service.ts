@@ -1,30 +1,30 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import users from '../users.json';
+import { AuthDto } from './dto';
 import { JwtService } from '@nestjs/jwt';
-import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class AuthService {
-  constructor(
-    private usersService: UsersService,
-    private jwtService: JwtService,
-  ) {}
+  constructor(private jwtService: JwtService) {}
 
-  async validateUser(username: string, password: string): Promise<any> {
-    const user = await this.usersService.findOne(username);
-
-    if (user && user.password === password) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...rest } = user;
-      return rest;
-    }
-
-    return null;
+  signinLocal(dto: AuthDto) {
+    // retrive user
+    const user = users.find((user) => user.email === dto.email);
+    if (!user) throw new NotFoundException('Credentials incorrect');
+    if (user.password !== dto.password)
+      throw new UnauthorizedException('Credentials incorrect');
+    return this.signUser(user.id, user.email, 'user');
   }
 
-  async login(user: any) {
-    const payload = { name: user.name, sub: user.id };
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
+  signUser(userId: number, email: string, type: string) {
+    return this.jwtService.sign({
+      sub: userId,
+      email,
+      claim: type,
+    });
   }
 }
